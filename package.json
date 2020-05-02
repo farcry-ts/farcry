@@ -1,8 +1,39 @@
 {
   "name": "farcry",
   "version": "0.0.1",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "repository": "git@github.com:HannesP/farcry.git",
-  "author": "HannesP <mail@hannesp.se>",
-  "license": "MIT"
+  "author": "Hannes Petri <mail@hannesp.se>",
+  "license": "MIT",
+  "scripts": {
+    "prepare": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json",
+    "test": "ts-mocha test/index.ts"
+  },
+  "files": [
+    "dist/*.js",
+    "dist/*.d.ts"
+  ],
+  "devDependencies": {
+    "@types/chai": "^4.2.11",
+    "@types/chai-http": "^4.2.0",
+    "@types/express": "^4.17.6",
+    "@types/mocha": "^7.0.2",
+    "@types/mustache": "^4.0.1",
+    "body-parser": "^1.19.0",
+    "chai": "^4.2.0",
+    "chai-http": "^4.3.0",
+    "express": "^4.17.1",
+    "mocha": "^7.1.2",
+    "ts-mocha": "^7.0.0",
+    "ts-node": "^8.9.1",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "fp-ts": "^2.0.0",
+    "io-ts": "^2.2.1",
+    "jayson": "^3.3.0",
+    "mustache": "^4.0.1"
+  }
 }

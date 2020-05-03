@@ -17,7 +17,7 @@ program
     'Use DataLoader (requires "dataloader" dependency)',
     false
   )
-  .option("--endpoint [string]", "The RPC endpoint", "/rpc")
+  .option("--endpoint [string]", "The JSON-RPC HTTP endpoint", "/rpc")
   .action((params) => {
     const path = require("path");
 

@@ -9,7 +9,7 @@ const methodTemplate = `
 export function {{{name}}}({{{args}}}): Promise<{{{returnType}}}> {
   return call({
     method: "{{{name}}}",
-    params: {{{params}}}
+    params: {{{params}}},
   }) as Promise<{{{returnType}}}>;
 }
 `.trim();
@@ -17,7 +17,9 @@ export function {{{name}}}({{{args}}}): Promise<{{{returnType}}}> {
 const callTemplateDataloader = `
 import DataLoader from "dataloader";
 
-const jsonRpcLoader = new DataLoader((methods) => callBatch(methods), { cache: false });
+const jsonRpcLoader = new DataLoader((methods) => callBatch(methods), {
+  cache: false,
+});
 
 function callBatch(methods: any) {
   const withId = methods.map((method: any, id: number) => {
@@ -35,12 +37,14 @@ function callBatch(methods: any) {
     .then((results) =>
       results
         .sort((a: any, b: any) => a.id - b.id)
-        .map((resultEnvelope: any) => resultEnvelope.result)
+        .map(
+          (envelope: any) => envelope.result ?? Promise.reject(envelope.error)
+        )
     );
 }
 
 function call(method: any) {
-  jsonRpcLoader.load(method);
+  return jsonRpcLoader.load(method);
 }
 `.trim();
 
@@ -48,12 +52,13 @@ const callTemplateNoDataloader = `
 function call(method: any) {
   return fetch("{{{endpoint}}}", {
     method: "POST",
-    body: JSON.stringify({ ...method, id: 0 }),
+    body: JSON.stringify({ ...method, jsonrpc: "2.0", id: 0 }),
     headers: {
       "content-type": "application/json",
     },
   })
     .then((res) => res.json())
+    .then((json) => json.result ?? Promise.reject(json.error));
 }
 `.trim();
 

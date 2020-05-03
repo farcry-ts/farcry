@@ -102,16 +102,26 @@ export function createRpcHandler<C extends {} = {}>() {
       }
 
       return async function (req: RequestWithBody, res: Response) {
+        if (typeof req.body !== 'object') {
+          console.error("The request body must be an object");
+          res.sendStatus(500);
+          return;
+        }
+        
+        let context = {};
         try {
-          const context = await (buildContext?.(req) ?? {});
-          server.call(req.body, context, function (err: any, result: any) {
-            // TODO: Can we be sure that `err' is always a JSON-RPC error?
-            res.send(result || err);
-          });
+          if (buildContext) {
+            context = await buildContext(req);
+          }
         } catch (err) {
           console.error("Failed to create RPC context: " + err.toString());
           res.sendStatus(500);
         }
+
+        server.call(req.body, context, function (err: any, result: any) {
+          // TODO: Can we be sure that `err' is always a JSON-RPC error?
+          res.send(result || err);
+        });
       };
     },
 

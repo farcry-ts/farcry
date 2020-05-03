@@ -114,7 +114,7 @@ it("should pass a smoke test", (done) => {
     });
 });
 
-it("should return an error if the params type isn't correct", (done) => {
+it("should return an error (-31999) if the params type isn't correct", (done) => {
   const rpc = createRpcHandler();
 
   rpc.method(
@@ -158,7 +158,7 @@ it("should return an error if the params type isn't correct", (done) => {
     });
 });
 
-it("should return an error if the return type isn't correct", (done) => {
+it("should return an error (-31998) if the return type isn't correct", (done) => {
   const rpc = createRpcHandler();
 
   rpc.method(
@@ -191,7 +191,39 @@ it("should return an error if the return type isn't correct", (done) => {
     });
 });
 
-it("should fail with HTTP 500 when context builder fails", (done) => {
+it("should return an error (-32600) if the request isn't valid", (done) => {
+  const rpc = createRpcHandler();
+
+  rpc.method(
+    {
+      name: "test-method",
+      returns: t.number,
+      params: t.type({}),
+    },
+    async function () {
+      return 0;
+    }
+  );
+
+  const app = getApp(rpc.middleware());
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "3.0",
+      method: "test-method",
+      params: {},
+      id: 0,
+    })
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res.body).to.be.an.rpcError(-32600);
+      done();
+    });
+});
+
+it("should fail with HTTP 500 when the context builder fails", (done) => {
   const rpc = createRpcHandler();
 
   rpc.method(
@@ -210,6 +242,39 @@ it("should fail with HTTP 500 when context builder fails", (done) => {
       throw new Error("context builder failed");
     })
   );
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: {},
+      id: 0,
+    })
+    .end((err, res) => {
+      expect(res).to.have.status(500);
+      expect(err).to.be.null;
+      done();
+    });
+});
+
+it("should fail with HTTP 500 when the request body isn't parsed", (done) => {
+  const rpc = createRpcHandler();
+
+  rpc.method(
+    {
+      name: "test-method",
+      returns: t.number,
+      params: t.type({}),
+    },
+    async function () {
+      return 0;
+    }
+  );
+
+  const app = express();
+  app.use(ENDPOINT, rpc.middleware());
 
   chai
     .request(app)
@@ -286,7 +351,7 @@ it("should handle batches with some failures", (done) => {
     });
 });
 
-it("should return a general domain error", (done) => {
+it("should return an error (-31997) on a general domain error", (done) => {
   const rpc = createRpcHandler();
 
   rpc.method(
@@ -319,7 +384,7 @@ it("should return a general domain error", (done) => {
     });
 });
 
-it("should return a specific domain error", (done) => {
+it("should return a custom error code on a specific domain error", (done) => {
   const rpc = createRpcHandler();
 
   rpc.method(

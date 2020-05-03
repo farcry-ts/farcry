@@ -3,12 +3,17 @@
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:HannesP/farcry.git",
+  "repository": "git@github.com:farcry-ts/farcry.git",
   "author": "Hannes Petri <mail@hannesp.se>",
   "license": "MIT",
   "scripts": {
-    "prepare": "tsc --project tsconfig.json",
-    "test": "ts-mocha test/index.ts"
+    "clean": "test -d dist && rm -r dist",
+    "build": "tsc",
+    "test": "ts-mocha test/index.ts",
+    "prepack": "npm run test && npm run clean && npm run build"
+  },
+  "bin": {
+    "farcry": "./bin/farcry.js"
   },
   "files": [
     "dist/*.js",
@@ -30,6 +35,8 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
+    "commander": "^5.1.0",
+    "find-config": "^1.0.0",
     "fp-ts": "^2.0.0",
     "io-ts": "^2.2.1",
     "jayson": "^3.3.0",

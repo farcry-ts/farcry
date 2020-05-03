@@ -3,16 +3,18 @@ import * as t from "io-ts";
 
 import { MethodSpecs } from "./rpc";
 
+// TODO: This is a rouch proof-of-concept implementation. Improve with more sophistication
+
 const methodTemplate = `
 export function {{{name}}}({{{args}}}): Promise<{{{returnType}}}> {
-  return jsonRpcLoader.load({
+  return call({
     method: "{{{name}}}",
     params: {{{params}}}
   }) as Promise<{{{returnType}}}>;
 }
 `.trim();
 
-const callTemplate = `
+const callTemplateDataloader = `
 import DataLoader from "dataloader";
 
 const jsonRpcLoader = new DataLoader((methods) => callBatch(methods), { cache: false });
@@ -22,7 +24,7 @@ function callBatch(methods: any) {
     return { ...method, id, jsonrpc: "2.0" };
   });
 
-  return fetch("/rpc", {
+  return fetch("{{{endpoint}}}", {
     method: "POST",
     body: JSON.stringify(withId),
     headers: {
@@ -35,6 +37,23 @@ function callBatch(methods: any) {
         .sort((a: any, b: any) => a.id - b.id)
         .map((resultEnvelope: any) => resultEnvelope.result)
     );
+}
+
+function call(method: any) {
+  jsonRpcLoader.load(method);
+}
+`.trim();
+
+const callTemplateNoDataloader = `
+function call(method: any) {
+  return fetch("{{{endpoint}}}", {
+    method: "POST",
+    body: JSON.stringify({ ...method, id: 0 }),
+    headers: {
+      "content-type": "application/json",
+    },
+  })
+    .then((res) => res.json())
 }
 `.trim();
 
@@ -53,16 +72,21 @@ function codegenMethod(
   });
 }
 
-function codegenCall(endpoint: string) {
-  return Mustache.render(callTemplate, { endpoint });
+function codegenCall(opts: CodegenOpts) {
+  const { endpoint, withDataloader } = opts;
+  const template = withDataloader
+    ? callTemplateDataloader
+    : callTemplateNoDataloader;
+  return Mustache.render(template, { endpoint });
 }
 
 interface CodegenOpts {
   endpoint: string;
+  withDataloader: boolean;
 }
 
 export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
-  const codeCall = codegenCall(opts.endpoint);
+  const codeCall = codegenCall(opts);
   const codeMethods = [];
 
   const identifierRe = /^[a-zA-Z0-9_]+$/; // TODO: do something more sophisticated

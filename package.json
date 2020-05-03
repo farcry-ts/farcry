@@ -13,11 +13,12 @@
     "prepack": "npm run test && npm run clean && npm run build"
   },
   "bin": {
-    "farcry": "./bin/farcry.js"
+    "farcry": "bin/farcry.js"
   },
   "files": [
     "dist/*.js",
-    "dist/*.d.ts"
+    "dist/*.d.ts",
+    "bin/*.js"
   ],
   "devDependencies": {
     "@types/chai": "^4.2.11",
@@ -30,9 +31,7 @@
     "chai-http": "^4.3.0",
     "express": "^4.17.1",
     "mocha": "^7.1.2",
-    "ts-mocha": "^7.0.0",
-    "ts-node": "^8.9.1",
-    "typescript": "^3.8.3"
+    "ts-mocha": "^7.0.0"
   },
   "dependencies": {
     "commander": "^5.1.0",
@@ -40,6 +39,8 @@
     "fp-ts": "^2.0.0",
     "io-ts": "^2.2.1",
     "jayson": "^3.3.0",
-    "mustache": "^4.0.1"
+    "mustache": "^4.0.1",
+    "ts-node": "^8.9.1",
+    "typescript": "^3.8.3"
   }
 }

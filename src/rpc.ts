@@ -42,11 +42,11 @@ function isDomainError(error: unknown): error is DomainError {
   return (error as any)[DomainErrorTag];
 }
 
-export function createRpcHandler<C extends {} = {}>() {
+export function handler<C extends {} = {}>() {
   return new RpcHandler<C>();
 }
 
-export class RpcHandler<C extends {} = {}> {
+class RpcHandler<C extends {} = {}> {
   private _methods: Record<string, jayson.MethodHandlerContext> = {};
   private _specs: MethodSpecs = {};
 

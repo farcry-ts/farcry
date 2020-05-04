@@ -43,90 +43,92 @@ function isDomainError(error: unknown): error is DomainError {
 }
 
 export function createRpcHandler<C extends {} = {}>() {
-  const methods: Record<string, jayson.MethodHandlerContext> = {};
-  const specs: MethodSpecs = {};
+  return new RpcHandler<C>();
+}
 
-  return {
-    method<P extends t.Props, R extends t.Mixed>(
-      spec: MethodSpec<P, R>,
-      body: MethodBody<P, C, R>
+export class RpcHandler<C extends {} = {}> {
+  private _methods: Record<string, jayson.MethodHandlerContext> = {};
+  private _specs: MethodSpecs = {};
+
+  method<P extends t.Props, R extends t.Mixed>(
+    spec: MethodSpec<P, R>,
+    body: MethodBody<P, C, R>
+  ) {
+    const jaysonCallback: jayson.MethodHandlerContext = async function (
+      params,
+      context,
+      callback
     ) {
-      const jaysonCallback: jayson.MethodHandlerContext = async function (
-        params,
-        context,
-        callback
-      ) {
-        if (!spec.params.is(params)) {
-          const decoded = spec.params.decode(params);
-          const errors = PathReporter.report(decoded);
+      if (!spec.params.is(params)) {
+        const decoded = spec.params.decode(params);
+        const errors = PathReporter.report(decoded);
 
-          return callback({
-            code: RpcErrorCode.INVALID_PARAMS,
-            message: "Invalid parameters type",
-            data: {
-              errors,
-            },
-          });
-        }
-
-        try {
-          const result = await body(params, context as C);
-          if (!spec.returns.is(result)) {
-            return callback({
-              code: RpcErrorCode.INVALID_RETURN,
-              message: "Invalid return type",
-            });
-          }
-          return callback(null, result);
-        } catch (err) {
-          const code = isDomainError(err)
-            ? err.code
-            : RpcErrorCode.DOMAIN_ERROR;
-
-          return callback({
-            code,
-            message: err.message,
-          });
-        }
-      };
-
-      methods[spec.name] = jaysonCallback;
-      specs[spec.name] = spec;
-    },
-
-    middleware(buildContext?: ContextBuilder<C>): Handler {
-      const server = new jayson.Server(methods, { useContext: true });
-
-      interface RequestWithBody extends Request {
-        body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
+        return callback({
+          code: RpcErrorCode.INVALID_PARAMS,
+          message: "Invalid parameters type",
+          data: {
+            errors,
+          },
+        });
       }
 
-      return async function (req: RequestWithBody, res: Response) {
-        if (typeof req.body !== 'object') {
-          console.error("The request body must be an object");
-          res.sendStatus(500);
-          return;
+      try {
+        const result = await body(params, context as C);
+        if (!spec.returns.is(result)) {
+          return callback({
+            code: RpcErrorCode.INVALID_RETURN,
+            message: "Invalid return type",
+          });
         }
-        
-        let context = {};
-        try {
-          if (buildContext) {
-            context = await buildContext(req);
-          }
-        } catch (err) {
-          console.error("Failed to create RPC context: " + err.toString());
-          res.sendStatus(500);
-        }
+        return callback(null, result);
+      } catch (err) {
+        const code = isDomainError(err) ? err.code : RpcErrorCode.DOMAIN_ERROR;
 
-        server.call(req.body, context, function (err: any, result: any) {
-          // TODO: Can we be sure that `err' is always a JSON-RPC error?
-          res.send(result || err);
+        return callback({
+          code,
+          message: err.message,
         });
-      };
-    },
+      }
+    };
 
-    specs(): MethodSpecs {
-      return { ...specs };
-    },
-  };
+    this._methods[spec.name] = jaysonCallback;
+    this._specs[spec.name] = spec;
+
+    return this;
+  }
+
+  middleware(buildContext?: ContextBuilder<C>): Handler {
+    const server = new jayson.Server(this._methods, { useContext: true });
+
+    interface RequestWithBody extends Request {
+      body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
+    }
+
+    return async function (req: RequestWithBody, res: Response) {
+      if (typeof req.body !== "object") {
+        console.error("The request body must be an object");
+        res.sendStatus(500);
+        return;
+      }
+
+      let context = {};
+      try {
+        if (buildContext) {
+          context = await buildContext(req);
+        }
+      } catch (err) {
+        console.error("Failed to create RPC context: " + err.toString());
+        res.sendStatus(500);
+      }
+
+      server.call(req.body, context, function (err: any, result: any) {
+        // TODO: Can we be sure that `err' is always a JSON-RPC error?
+        res.send(result || err);
+      });
+    };
+  }
+
+  specs(): MethodSpecs {
+    return { ...this._specs };
+  }
 }

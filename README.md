@@ -1,12 +1,14 @@
 # farcry
 
-```typescript
-// Create the RPC handler:
+Usage:
 
+### rpc.ts
+
+```typescript
 import { handler } from "farcry";
 import * as t from "io-ts";
 
-const rpc = handler().method(
+export default handler().method(
   {
     name: "add",
     params: t.type({
@@ -19,13 +21,30 @@ const rpc = handler().method(
     return x + y;
   }
 );
+```
 
-// Serve it with Express:
+### index.ts
 
+```typescript
 import express from "express";
 import bodyParser from "body-parser";
+import rpc from "./rpc";
 
 const app = express();
 app.use("/rpc", bodyParser.json(), rpc.middleware());
 app.listen(8080);
+```
+
+### Generate client code
+
+```bash
+farcry codegen --in rpc.ts --out RpcClient.ts
+```
+
+### In your client
+
+```typescript
+import { add } from "./RpcClient";
+
+add({ x: 10, y: 20 }).then((result) => console.log(result));
 ```

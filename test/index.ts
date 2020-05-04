@@ -14,7 +14,7 @@ declare global {
   export namespace Chai {
     interface TypeComparison {
       rpcError(code: number, message?: string): void;
-      rpcResult(result: any): void;
+      rpcResult(result?: any): void;
     }
   }
 }
@@ -36,10 +36,15 @@ Assertion.addMethod("rpcError", function (code: number, message?: string) {
   }
 });
 
-Assertion.addMethod("rpcResult", function (result: any) {
+Assertion.addMethod("rpcResult", function (result?: any) {
   new Assertion(this._obj).to.have.property("jsonrpc", "2.0");
   new Assertion(this._obj).to.have.property("id");
-  new Assertion(this._obj).to.have.property("result").to.deep.equal(result);
+
+  if (arguments.length === 0) {
+    new Assertion(this._obj).to.have.deep.property("result");
+  } else {
+    new Assertion(this._obj).to.have.deep.property("result", result);
+  }
 });
 
 chai.use(chaiHttp);
@@ -417,7 +422,7 @@ it("should return a custom error code on a specific domain error", (done) => {
     });
 });
 
-it("should be a fluent-style api", (done) => {
+it("should be a fluent-style API", (done) => {
   const rpc = handler()
     .method(
       {
@@ -467,3 +472,71 @@ it("should be a fluent-style api", (done) => {
       done();
     });
 });
+
+// TODO: implement feature
+//
+// it("should strip excess input", (done) => {
+//   let storedX, storedY;
+
+//   const rpc = handler().method(
+//     {
+//       name: "test-method",
+//       returns: t.null,
+//       params: t.type({ x: t.number }),
+//     },
+//     async function (params) {
+//       storedX = params["x"];
+//       storedY = params["y"];
+//     }
+//   );
+
+//   const app = getApp(rpc.middleware());
+
+//   chai
+//     .request(app)
+//     .post(ENDPOINT)
+//     .send({
+//       jsonrpc: "2.0",
+//       method: "test-method",
+//       params: { x: 10, y: 10 },
+//       id: 1,
+//     })
+//     .end((err, res) => {
+//       expect(err).to.be.null;
+//       expect(res).to.have.status(200);
+//       expect(storedX).to.equal(10);
+//       expect(storedY).to.be.undefined;
+//       done();
+//     });
+// });
+
+// it("should strip excess output", (done) => {
+//   const rpc = handler().method(
+//     {
+//       name: "test-method",
+//       returns: t.type({ x: t.number }),
+//       params: t.type({}),
+//     },
+//     async function () {
+//       return { x: 10, y: 10 };
+//     }
+//   );
+
+//   const app = getApp(rpc.middleware());
+
+//   chai
+//     .request(app)
+//     .post(ENDPOINT)
+//     .send({
+//       jsonrpc: "2.0",
+//       method: "test-method",
+//       params: {},
+//       id: 1,
+//     })
+//     .end((err, res) => {
+//       expect(err).to.be.null;
+//       expect(res).to.have.status(200);
+//       expect(res.body).to.be.an.rpcResult({ x: 10 });
+//       done();
+//     });
+// });

@@ -416,3 +416,54 @@ it("should return a custom error code on a specific domain error", (done) => {
       done();
     });
 });
+
+it("should be a fluent-style api", (done) => {
+  const rpc = handler()
+    .method(
+      {
+        name: "test-method-1",
+        returns: t.number,
+        params: t.type({}),
+      },
+      async function () {
+        return 1;
+      }
+    )
+    .method(
+      {
+        name: "test-method-2",
+        returns: t.number,
+        params: t.type({}),
+      },
+      async function () {
+        return 2;
+      }
+    );
+
+  const app = getApp(rpc.middleware());
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send([
+      {
+        jsonrpc: "2.0",
+        method: "test-method-1",
+        params: {},
+        id: 1,
+      },
+      {
+        jsonrpc: "2.0",
+        method: "test-method-2",
+        params: {},
+        id: 2,
+      },
+    ])
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res).to.have.status(200);
+      expect(res.body.find((result) => result.id === 1)).to.be.an.rpcResult(1);
+      expect(res.body.find((result) => result.id === 2)).to.be.an.rpcResult(2);
+      done();
+    });
+});

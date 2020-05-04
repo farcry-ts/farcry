@@ -1,5 +1,7 @@
 # farcry
 
+![Build & Test](https://github.com/farcry-ts/farcry/workflows/Build%20&%20Test/badge.svg)
+
 Usage:
 
 ### rpc.ts

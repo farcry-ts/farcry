@@ -64,10 +64,10 @@ function call(method: any) {
 
 function codegenMethod(
   name: string,
-  returnType: t.TypeC<any>,
-  paramsType: t.TypeC<any>
+  returnType: t.Type<any>,
+  paramsType: t.Type<any>
 ) {
-  const hasNoParams = Object.keys(paramsType.props).length === 0;
+  const hasNoParams = paramsType.name === "{  }"; // TODO: ugly! And brittle, if io-ts's implementation of `name' changes
 
   return Mustache.render(methodTemplate, {
     name,
@@ -91,6 +91,8 @@ interface CodegenOpts {
 }
 
 export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
+  // TODO: not all parameter names are valid identifiers. Find a reliable way to validate them
+
   const codeCall = codegenCall(opts);
   const codeMethods = [];
 
@@ -105,26 +107,6 @@ export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
     const spec = specs[methodName];
     const returnType = spec.returns;
     const paramsType = spec.params;
-
-    // TODO: find a better approach for this. This one, for example, doesn't search deeply for incompatible names
-    let failedParamName = false;
-
-    if (paramsType != null) {
-      const paramNames = Object.keys(paramsType.props);
-      for (const paramName of paramNames) {
-        if (!identifierRe.test(paramName)) {
-          console.warn(
-            `\’${paramName}' is not a valid method name. Skipping method \`${methodName}'`
-          );
-          failedParamName = true;
-          break;
-        }
-      }
-    }
-
-    if (failedParamName) {
-      continue;
-    }
 
     codeMethods.push(codegenMethod(methodName, returnType, paramsType), "");
   }

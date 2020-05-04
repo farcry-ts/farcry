@@ -4,18 +4,18 @@ import { PathReporter } from "io-ts/lib/PathReporter";
 import jayson, { JSONRPCVersionTwoRequest } from "jayson";
 import { Request, Response, Handler } from "express";
 
-export interface MethodSpec<P extends t.Props, R extends t.Mixed> {
+export interface MethodSpec<P extends {}, R> {
   name: string;
-  returns: R;
-  params: t.TypeC<P>; // How to make this optional?
+  returns: t.Type<R>;
+  params: t.Type<P>; // How to make this optional?
 }
 
 export interface MethodSpecs {
   [name: string]: MethodSpec<any, any>;
 }
 
-interface MethodBody<P extends t.Props, C, R extends t.Mixed> {
-  (params: t.TypeOf<t.TypeC<P>>, context: C): Promise<t.TypeOf<R>>;
+interface MethodBody<P extends {}, C, R> {
+  (params: P, context: C): Promise<R>;
 }
 
 interface ContextBuilder<T> {
@@ -50,10 +50,7 @@ class RpcHandler<C extends {} = {}> {
   private _methods: Record<string, jayson.MethodHandlerContext> = {};
   private _specs: MethodSpecs = {};
 
-  method<P extends t.Props, R extends t.Mixed>(
-    spec: MethodSpec<P, R>,
-    body: MethodBody<P, C, R>
-  ) {
+  method<P extends {}, R>(spec: MethodSpec<P, R>, body: MethodBody<P, C, R>) {
     const jaysonCallback: jayson.MethodHandlerContext = async function (
       params,
       context,

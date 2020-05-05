@@ -3,7 +3,7 @@ import * as t from "io-ts";
 
 import { MethodSpecs } from "./rpc";
 
-// TODO: This is a rouch proof-of-concept implementation. Improve with more sophistication
+// TODO: This is a rough proof-of-concept implementation. Improve with more sophistication
 
 const methodTemplate = `
 export function {{{name}}}({{{args}}}): Promise<{{{returnType}}}> {
@@ -37,8 +37,10 @@ function callBatch(methods: any) {
     .then((results) =>
       results
         .sort((a: any, b: any) => a.id - b.id)
-        .map(
-          (envelope: any) => envelope.result ?? Promise.reject(envelope.error)
+        .map((envelope: any) =>
+          envelope.error == null
+            ? envelope.result
+            : Promise.reject(envelope.error)
         )
     );
 }
@@ -58,7 +60,9 @@ function call(method: any) {
     },
   })
     .then((res) => res.json())
-    .then((json) => json.result ?? Promise.reject(json.error));
+    .then((json) =>
+      json.error == null ? json.result : Promise.reject(json.error)
+    );
 }
 `.trim();
 

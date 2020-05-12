@@ -2,7 +2,7 @@
 
 ![Build & Test](https://github.com/farcry-ts/farcry/workflows/Build%20&%20Test/badge.svg)
 
-FarCry is a library for TypeScript in NodeJS for type-safe RPC over HTTP. The core idea is to make a server application using FarCry the **single source of truth** with regards to types. Using a single specification of each method, you get **compile-time type safety**, **input validation**, **output validation** and **type-safe generated client code**.
+FarCry is a TypeScript library for type-safe RPC over HTTP in NodeJS. The core idea is to make a server application using FarCry the **single source of truth** with regards to types. Using a single specification of each method, you get **compile-time type safety**, **input validation**, **output validation** and **type-safe generated client code**.
 
 With FarCry, you can speed up prototyping and application development significantly. Instead of REST, with its data-centrism, complexity and ambiguity, FarCry peforms client-server communication with [JSON-RPC](https://www.jsonrpc.org/), which is a lightweight but versatile standard. With built-in support for call batching, FarCry helps you reduce the number of HTTP requests the client needs to perform drastically.
 
@@ -69,8 +69,17 @@ add({ x: 10, y: 20 }).then((result) => console.log(result));
 import { useMethod } from "react-farcry";
 import { add } from "./RpcClient";
 
-function Sum() {
-  const sum = useMethod(add, { x: 10, y: 20 });
-  return <p>The sum is {sum}</p>;
+function Sum(props: SumProps) {
+  const sum = useMethod(add, { x: props.x, y: props.y });
+
+  if (sum === undefined) {
+    return <p>Loading...</p>;
+  }
+
+  return (
+    <p>
+      {props.x} + {props.y} = {sum}
+    </p>
+  );
 }
 ```

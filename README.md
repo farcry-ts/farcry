@@ -25,10 +25,10 @@ import * as t from "io-ts";
 export default handler().method(
   {
     name: "add",
-    params: t.type({
+    params: {
       x: t.number,
       y: t.number,
-    }),
+    },
     returns: t.number,
   },
   async function ({ x, y }) {

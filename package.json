@@ -37,7 +37,7 @@
     "commander": "^5.1.0",
     "find-config": "^1.0.0",
     "fp-ts": "^2.0.0",
-    "io-ts": "^2.2.1",
+    "io-ts": "^2.2.2",
     "jayson": "^3.3.0",
     "mustache": "^4.0.1",
     "ts-node": "^8.9.1",

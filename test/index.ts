@@ -81,10 +81,10 @@ it("should pass a smoke test", (done) => {
     {
       name: "test-method",
       returns: t.string,
-      params: t.type({
+      params: {
         a: t.number,
         b: t.string,
-      }),
+      },
     },
     async function (params, context) {
       const sum = params.a + parseInt(params.b, 10);
@@ -126,10 +126,10 @@ it("should return an error (-31999) if the params type isn't correct", (done) =>
     {
       name: "test-method",
       returns: t.null,
-      params: t.type({
+      params: {
         firstParam: t.number,
         secondParam: t.string,
-      }),
+      },
     },
     async function () {
       return null;
@@ -170,7 +170,7 @@ it("should return an error (-31998) if the return type isn't correct", (done) =>
     {
       name: "test-method",
       returns: t.number,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       return ("a string" as unknown) as number;
@@ -203,7 +203,7 @@ it("should return an error (-32600) if the request isn't valid", (done) => {
     {
       name: "test-method",
       returns: t.number,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       return 0;
@@ -235,7 +235,7 @@ it("should fail with HTTP 500 when the context builder fails", (done) => {
     {
       name: "test-method",
       returns: t.number,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       return 0;
@@ -271,7 +271,7 @@ it("should fail with HTTP 500 when the request body isn't parsed", (done) => {
     {
       name: "test-method",
       returns: t.number,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       return 0;
@@ -304,7 +304,7 @@ it("should handle batches with some failures", (done) => {
     {
       name: "test-method-1",
       returns: t.number,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       return 0;
@@ -315,7 +315,7 @@ it("should handle batches with some failures", (done) => {
     {
       name: "test-method-2",
       returns: t.number,
-      params: t.type({ mandatory: t.number }),
+      params: { mandatory: t.number },
     },
     async function () {
       return 0;
@@ -363,7 +363,7 @@ it("should return an error (-31997) on a general domain error", (done) => {
     {
       name: "test-method",
       returns: t.void,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       throw new Error();
@@ -396,7 +396,7 @@ it("should return a custom error code on a specific domain error", (done) => {
     {
       name: "test-method",
       returns: t.void,
-      params: t.type({}),
+      params: {},
     },
     async function () {
       throw new DomainError("custom error message", 12345);
@@ -428,7 +428,7 @@ it("should be a fluent-style API", (done) => {
       {
         name: "test-method-1",
         returns: t.number,
-        params: t.type({}),
+        params: {},
       },
       async function () {
         return 1;
@@ -438,7 +438,7 @@ it("should be a fluent-style API", (done) => {
       {
         name: "test-method-2",
         returns: t.number,
-        params: t.type({}),
+        params: {},
       },
       async function () {
         return 2;
@@ -469,6 +469,52 @@ it("should be a fluent-style API", (done) => {
       expect(res).to.have.status(200);
       expect(res.body.find((result) => result.id === 1)).to.be.an.rpcResult(1);
       expect(res.body.find((result) => result.id === 2)).to.be.an.rpcResult(2);
+      done();
+    });
+});
+
+it("should handle complex params and return types", (done) => {
+  const rpc = handler().method(
+    {
+      name: "test-method",
+      returns: t.array(
+        t.type({
+          a: t.number,
+          b: t.boolean,
+          c: t.type({
+            x: t.array(t.boolean),
+          }),
+        })
+      ),
+      params: {
+        x: t.type({
+          a: t.array(t.type({ x: t.string, y: t.array(t.number) })),
+        }),
+      },
+    },
+    async function (params) {
+      const _v = params.x.a[0].y[0];
+      return [
+        { a: 10, b: true, c: { x: [true, false, true] } },
+        { a: 20, b: false, c: { x: [true, true, true] } },
+      ];
+    }
+  );
+
+  const app = getApp(rpc.middleware());
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: { x: { a: [{ x: "s", y: [1, 2, 3] }] } },
+      id: 1,
+    })
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res).to.have.status(200);
       done();
     });
 });

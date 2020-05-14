@@ -7,7 +7,7 @@ import { MethodSpecs } from "./rpc";
 
 const methodTemplate = `
 export function {{{name}}}({{{args}}}): Promise<{{{returnType}}}> {
-  return call({
+  return {{{callFunctionName}}}({
     method: "{{{name}}}",
     params: {{{params}}},
   }) as Promise<{{{returnType}}}>;
@@ -48,6 +48,20 @@ function callBatch(methods: any) {
 function call(method: any) {
   return jsonRpcLoader.load(method);
 }
+
+function callSingle(method: any) {
+  return fetch("{{{endpoint}}}", {
+    method: "POST",
+    body: JSON.stringify({ ...method, jsonrpc: "2.0", id: 0 }),
+    headers: {
+      "content-type": "application/json",
+    },
+  })
+    .then((res) => res.json())
+    .then((json) =>
+      json.error == null ? json.result : Promise.reject(json.error)
+    );
+}
 `.trim();
 
 const callTemplateNoDataloader = `
@@ -69,7 +83,8 @@ function call(method: any) {
 function codegenMethod(
   name: string,
   returnType: t.Type<any>,
-  paramsType: t.Type<any>
+  paramsType: t.Type<any>,
+  callFunctionName?: string
 ) {
   const hasNoParams = paramsType.name === "{  }"; // TODO: ugly! And brittle, if io-ts's implementation of `name' changes
 
@@ -78,6 +93,7 @@ function codegenMethod(
     returnType: returnType.name,
     args: hasNoParams ? "" : `params: ${paramsType.name}`,
     params: hasNoParams ? "{}" : "params",
+    callFunctionName: callFunctionName ?? "call",
   });
 }
 
@@ -110,9 +126,16 @@ export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
 
     const spec = specs[methodName];
     const returnType = spec.returns;
-    const paramsType = spec.params;
+    const paramsType = t.type(spec.params);
+    const callFunctionName =
+      opts.withDataloader && spec.meta?.noBatch === true
+        ? "callSingle"
+        : "call";
 
-    codeMethods.push(codegenMethod(methodName, returnType, paramsType), "");
+    codeMethods.push(
+      codegenMethod(methodName, returnType, paramsType, callFunctionName),
+      ""
+    );
   }
 
   return [codeCall, "", ...codeMethods].join("\n");

@@ -8,6 +8,12 @@ export interface MethodSpec<P extends t.Props, R> {
   name: string;
   returns: t.Type<R>;
   params: P;
+  meta?: MethodMeta;
+}
+
+// This might become arbitrarily extensible via a type param to handler() later on
+interface MethodMeta {
+  noBatch?: boolean;
 }
 
 export interface MethodSpecs {

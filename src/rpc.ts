@@ -60,6 +60,12 @@ class RpcHandler<C extends {} = {}> {
     spec: MethodSpec<P, R>,
     body: MethodBody<P, C, R>
   ) {
+    if (this._specs.hasOwnProperty(spec.name)) {
+      throw new Error(
+        "There is already a handler with name '" + spec.name + "'"
+      );
+    }
+
     const jaysonCallback: jayson.MethodHandlerContext = async function (
       params,
       context,

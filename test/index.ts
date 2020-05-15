@@ -519,6 +519,20 @@ it("should handle complex params and return types", (done) => {
     });
 });
 
+it("shouldn't permit two methods with the same name", () => {
+  expect(() => {
+    handler()
+      .method(
+        { name: "a-name", returns: t.void, params: {} },
+        async function () {}
+      )
+      .method(
+        { name: "a-name", returns: t.void, params: {} },
+        async function () {}
+      );
+  }).to.throw();
+});
+
 // TODO: implement feature
 //
 // it("should strip excess input", (done) => {

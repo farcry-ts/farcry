@@ -30,6 +30,10 @@ enum RpcErrorCode {
   DOMAIN_ERROR,
 }
 
+interface MiddlewareOpts<C extends {}> {
+  contextBuilder: ContextBuilder<C>;
+}
+
 const DomainErrorTag = Symbol("DomainErrorTag");
 
 export class DomainError extends Error {
@@ -106,7 +110,8 @@ class RpcHandler<C extends {} = {}> {
     return this;
   }
 
-  middleware(buildContext?: ContextBuilder<C>): Handler {
+  //middleware(buildContext?: ContextBuilder<C>): Handler {
+  middleware(opts?: MiddlewareOpts<C>): Handler {
     const methods = this.stringMapToObject(this._methods);
     const server = new jayson.Server(methods, { useContext: true });
 
@@ -123,8 +128,8 @@ class RpcHandler<C extends {} = {}> {
 
       let context = {};
       try {
-        if (buildContext) {
-          context = await buildContext(req);
+        if (opts?.contextBuilder) {
+          context = await opts?.contextBuilder(req);
         }
       } catch (err) {
         console.error("Failed to create RPC context: " + err.toString());

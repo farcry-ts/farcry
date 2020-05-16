@@ -94,10 +94,12 @@ it("should pass a smoke test", (done) => {
   );
 
   const app = getApp(
-    rpc.middleware((req) => {
-      return {
-        v: req.headers["x-test-header"] as string,
-      };
+    rpc.middleware({
+      contextBuilder: (req) => {
+        return {
+          v: req.headers["x-test-header"] as string,
+        };
+      },
     })
   );
 
@@ -243,8 +245,10 @@ it("should fail with HTTP 500 when the context builder fails", (done) => {
   );
 
   const app = getApp(
-    rpc.middleware(() => {
-      throw new Error("context builder failed");
+    rpc.middleware({
+      contextBuilder: () => {
+        throw new Error("context builder failed");
+      },
     })
   );
 

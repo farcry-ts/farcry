@@ -53,8 +53,8 @@ export function handler<C extends {} = {}>() {
 }
 
 class RpcHandler<C extends {} = {}> {
-  private _methods: Map<string, jayson.MethodHandlerContext> = new Map();
   private _specs: Map<string, MethodSpec<any, any>> = new Map();
+  private _bodies: Map<string, MethodBody<any, C, any>> = new Map();
 
   method<P extends t.Props, R>(
     spec: MethodSpec<P, R>,
@@ -104,16 +104,14 @@ class RpcHandler<C extends {} = {}> {
       }
     };
 
-    this._methods.set(spec.name, jaysonCallback);
+    this._bodies.set(spec.name, body);
     this._specs.set(spec.name, spec);
 
     return this;
   }
 
-  //middleware(buildContext?: ContextBuilder<C>): Handler {
   middleware(opts?: MiddlewareOpts<C>): Handler {
-    const methods = this.stringMapToObject(this._methods);
-    const server = new jayson.Server(methods, { useContext: true });
+    const server = this.jaysonServer();
 
     interface RequestWithBody extends Request {
       body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
@@ -134,6 +132,7 @@ class RpcHandler<C extends {} = {}> {
       } catch (err) {
         console.error("Failed to create RPC context: " + err.toString());
         res.sendStatus(500);
+        return;
       }
 
       server.call(req.body, context, function (err: any, result: any) {
@@ -147,11 +146,49 @@ class RpcHandler<C extends {} = {}> {
     return Array.from(this._specs.values());
   }
 
-  private stringMapToObject<V>(map: Map<string, V>): { [key: string]: V } {
-    const result: { [key: string]: V } = {};
-    for (const [key, value] of map.entries()) {
-      result[key] = value;
+  private jaysonServer(): jayson.Server {
+    const methods: Record<string, jayson.MethodHandlerContext> = {};
+
+    for (const [name, spec] of this._specs.entries()) {
+      const body = this._bodies.get(name)!;
+
+      methods[name] = async function (params, context, callback) {
+        const paramsType = t.type(spec.params);
+        if (!paramsType.is(params)) {
+          const decoded = paramsType.decode(params);
+          const errors = PathReporter.report(decoded);
+
+          return callback({
+            code: RpcErrorCode.INVALID_PARAMS,
+            message: "Invalid parameters type",
+            data: {
+              errors,
+            },
+          });
+        }
+
+        try {
+          const result = await body(params, context as C);
+          if (!spec.returns.is(result)) {
+            return callback({
+              code: RpcErrorCode.INVALID_RETURN,
+              message: "Invalid return type",
+            });
+          }
+          return callback(null, result);
+        } catch (err) {
+          const code = isDomainError(err)
+            ? err.code
+            : RpcErrorCode.DOMAIN_ERROR;
+
+          return callback({
+            code,
+            message: err.message,
+          });
+        }
+      };
     }
-    return result;
+
+    return new jayson.Server(methods, { useContext: true });
   }
 }

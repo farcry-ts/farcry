@@ -1,7 +1,7 @@
 import Mustache from "mustache";
 import * as t from "io-ts";
 
-import { MethodSpecs } from "./rpc";
+import { MethodSpec } from "./rpc";
 
 // TODO: This is a rough proof-of-concept implementation. Improve with more sophistication
 
@@ -110,7 +110,10 @@ interface CodegenOpts {
   withDataloader: boolean;
 }
 
-export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
+export function generateClient(
+  specs: MethodSpec<any, any>[],
+  opts: CodegenOpts
+) {
   // TODO: not all parameter names are valid identifiers. Find a reliable way to validate them
 
   const codeCall = codegenCall(opts);
@@ -118,13 +121,14 @@ export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
 
   const identifierRe = /^[a-zA-Z0-9_]+$/; // TODO: do something more sophisticated
 
-  for (const methodName of Object.keys(specs)) {
-    if (!identifierRe.test(methodName)) {
-      console.warn(`\`${methodName}' is not a valid method name. Skipping`);
+  for (const spec of specs) {
+    const name = spec.name;
+
+    if (!identifierRe.test(name)) {
+      console.warn(`\`${name}' is not a valid method name. Skipping`);
       continue;
     }
 
-    const spec = specs[methodName];
     const returnType = spec.returns;
     const paramsType = t.type(spec.params);
     const callFunctionName =
@@ -133,7 +137,7 @@ export function generateClient(specs: MethodSpecs, opts: CodegenOpts) {
         : "call";
 
     codeMethods.push(
-      codegenMethod(methodName, returnType, paramsType, callFunctionName),
+      codegenMethod(name, returnType, paramsType, callFunctionName),
       ""
     );
   }

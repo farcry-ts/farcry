@@ -16,10 +16,6 @@ interface MethodMeta {
   noBatch?: boolean;
 }
 
-export interface MethodSpecs {
-  [name: string]: MethodSpec<any, any>;
-}
-
 interface MethodBody<P extends t.Props, C, R> {
   (params: t.TypeOf<t.TypeC<P>>, context: C): Promise<R>;
 }
@@ -53,14 +49,14 @@ export function handler<C extends {} = {}>() {
 }
 
 class RpcHandler<C extends {} = {}> {
-  private _methods: Record<string, jayson.MethodHandlerContext> = {};
-  private _specs: MethodSpecs = {};
+  private _methods: Map<string, jayson.MethodHandlerContext> = new Map();
+  private _specs: Map<string, MethodSpec<any, any>> = new Map();
 
   method<P extends t.Props, R>(
     spec: MethodSpec<P, R>,
     body: MethodBody<P, C, R>
   ) {
-    if (this._specs.hasOwnProperty(spec.name)) {
+    if (this._specs.has(spec.name)) {
       throw new Error(
         "There is already a handler with name '" + spec.name + "'"
       );
@@ -104,14 +100,15 @@ class RpcHandler<C extends {} = {}> {
       }
     };
 
-    this._methods[spec.name] = jaysonCallback;
-    this._specs[spec.name] = spec;
+    this._methods.set(spec.name, jaysonCallback);
+    this._specs.set(spec.name, spec);
 
     return this;
   }
 
   middleware(buildContext?: ContextBuilder<C>): Handler {
-    const server = new jayson.Server(this._methods, { useContext: true });
+    const methods = this.stringMapToObject(this._methods);
+    const server = new jayson.Server(methods, { useContext: true });
 
     interface RequestWithBody extends Request {
       body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
@@ -141,7 +138,15 @@ class RpcHandler<C extends {} = {}> {
     };
   }
 
-  specs(): MethodSpecs {
-    return { ...this._specs };
+  specs(): MethodSpec<any, any>[] {
+    return Array.from(this._specs.values());
+  }
+
+  private stringMapToObject<V>(map: Map<string, V>): { [key: string]: V } {
+    const result: { [key: string]: V } = {};
+    for (const [key, value] of map.entries()) {
+      result[key] = value;
+    }
+    return result;
   }
 }

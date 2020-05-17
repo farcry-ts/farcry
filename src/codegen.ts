@@ -142,5 +142,11 @@ export function generateClient(
     );
   }
 
-  return [codeCall, "", ...codeMethods].join("\n");
+  return [
+    "/* eslint-disable @typescript-eslint/no-unused-vars */",
+    "",
+    codeCall,
+    "",
+    ...codeMethods,
+  ].join("\n");
 }

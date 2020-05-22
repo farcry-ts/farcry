@@ -8,7 +8,7 @@
   "license": "MIT",
   "scripts": {
     "clean": "test -d dist && rm -r dist",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "ts-mocha test/index.ts",
     "prepack": "npm run test && npm run clean && npm run build"
   },

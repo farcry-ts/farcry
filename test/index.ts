@@ -19,9 +19,11 @@ declare global {
   }
 }
 
-console.error = () => {};
-console.warn = () => {};
-console.log = () => {};
+if (process.argv.indexOf("--log") === -1) {
+  console.error = () => {};
+  console.warn = () => {};
+  console.log = () => {};
+}
 
 Assertion.addMethod("rpcError", function (code: number, message?: string) {
   new Assertion(this._obj).to.have.property("jsonrpc", "2.0");
@@ -116,7 +118,7 @@ it("should pass a smoke test", (done) => {
     .end((err, res) => {
       expect(err).to.be.null;
       expect(res).to.have.status(200);
-      expect(res.body.result).to.eq("30 1020 abc");
+      expect(res.body).to.be.an.rpcResult("30 1020 abc");
       done();
     });
 });
@@ -471,8 +473,12 @@ it("should be a fluent-style API", (done) => {
     .end((err, res) => {
       expect(err).to.be.null;
       expect(res).to.have.status(200);
-      expect(res.body.find((result) => result.id === 1)).to.be.an.rpcResult(1);
-      expect(res.body.find((result) => result.id === 2)).to.be.an.rpcResult(2);
+      expect(
+        res.body.find((result: any) => result.id === 1)
+      ).to.be.an.rpcResult(1);
+      expect(
+        res.body.find((result: any) => result.id === 2)
+      ).to.be.an.rpcResult(2);
       done();
     });
 });
@@ -537,42 +543,129 @@ it("shouldn't permit two methods with the same name", () => {
   }).to.throw();
 });
 
-// TODO: implement feature
-//
-// it("should strip excess input", (done) => {
-//   let storedX, storedY;
+it("shouldn't permit a mandatory and an optional parameter to have the same name", () => {
+  expect(() => {
+    handler().method(
+      {
+        name: "a-name",
+        returns: t.void,
+        params: { a: t.number },
+        optionalParams: { a: t.number },
+      },
+      async function () {}
+    );
+  }).to.throw();
+});
 
-//   const rpc = handler().method(
-//     {
-//       name: "test-method",
-//       returns: t.null,
-//       params: t.type({ x: t.number }),
-//     },
-//     async function (params) {
-//       storedX = params["x"];
-//       storedY = params["y"];
-//     }
-//   );
+it("should handle optional parameters", (done) => {
+  const rpc = handler().method(
+    {
+      name: "test-method",
+      returns: t.number,
+      params: {
+        x: t.number,
+      },
+      optionalParams: {
+        y: t.number,
+        z: t.number,
+      },
+    },
+    async function (params) {
+      return params.x * (params.y ?? 1) * (params.z ?? 1);
+    }
+  );
 
-//   const app = getApp(rpc.middleware());
+  const app = getApp(rpc.middleware());
 
-//   chai
-//     .request(app)
-//     .post(ENDPOINT)
-//     .send({
-//       jsonrpc: "2.0",
-//       method: "test-method",
-//       params: { x: 10, y: 10 },
-//       id: 1,
-//     })
-//     .end((err, res) => {
-//       expect(err).to.be.null;
-//       expect(res).to.have.status(200);
-//       expect(storedX).to.equal(10);
-//       expect(storedY).to.be.undefined;
-//       done();
-//     });
-// });
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: { x: 7, y: 11 },
+      id: 1,
+    })
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res).to.have.status(200);
+      expect(res.body).to.be.an.rpcResult(77);
+      done();
+    });
+});
+
+it("shouldn't permit optional parameters of the wrong type", (done) => {
+  const rpc = handler().method(
+    {
+      name: "test-method",
+      returns: t.void,
+      params: {},
+      optionalParams: {
+        y: t.number,
+      },
+    },
+    async function () {}
+  );
+
+  const app = getApp(rpc.middleware());
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: { y: true },
+      id: 1,
+    })
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res).to.have.status(200);
+      expect(res.body).to.be.an.rpcError(-31999);
+      done();
+    });
+});
+
+it("should strip excess input", (done) => {
+  let storedX: number, storedY: any;
+  let storedZ: number, storedQ: any;
+
+  const rpc = handler().method(
+    {
+      name: "test-method",
+      returns: t.void,
+      params: { x: t.number },
+      optionalParams: { z: t.number },
+    },
+    async function (params) {
+      storedX = params["x"];
+      storedY = (params as any)["y"];
+      storedZ = params["z"]!;
+      storedQ = (params as any)["q"];
+    }
+  );
+
+  const app = getApp(rpc.middleware());
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: { x: 10, y: 10, z: 20, q: 20 },
+      id: 1,
+    })
+    .end((err, res) => {
+      expect(err).to.be.null;
+      expect(res).to.have.status(200);
+      expect(storedX).to.equal(10);
+      expect(storedY).to.be.undefined;
+      expect(storedZ).to.equal(20);
+      expect(storedQ).to.be.undefined;
+      done();
+    });
+});
 
 // it("should strip excess output", (done) => {
 //   const rpc = handler().method(

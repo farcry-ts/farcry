@@ -111,7 +111,7 @@ interface CodegenOpts {
 }
 
 export function generateClient(
-  specs: MethodSpec<any, any>[],
+  specs: MethodSpec<any, any, any>[],
   opts: CodegenOpts
 ) {
   // TODO: not all parameter names are valid identifiers. Find a reliable way to validate them

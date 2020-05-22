@@ -1,13 +1,15 @@
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/lib/PathReporter";
+import { isLeft } from "fp-ts/lib/Either";
 
 import jayson, { JSONRPCVersionTwoRequest } from "jayson";
 import { Request, Response, Handler } from "express";
 
-export interface MethodSpec<P extends t.Props, R> {
+export interface MethodSpec<P extends t.Props, Po extends t.Props, R> {
   name: string;
   returns: t.Type<R>;
   params: P;
+  optionalParams?: Po;
   meta?: MethodMeta;
 }
 
@@ -16,8 +18,11 @@ interface MethodMeta {
   noBatch?: boolean;
 }
 
-interface MethodBody<P extends t.Props, C, R> {
-  (params: t.TypeOf<t.TypeC<P>>, context: C): Promise<R>;
+interface MethodBody<P extends t.Props, Po extends t.Props, C, R> {
+  (
+    params: t.TypeOf<t.TypeC<P>> & t.TypeOf<t.PartialC<Po>>,
+    context: C
+  ): Promise<R>;
 }
 
 interface ContextBuilder<T> {
@@ -28,6 +33,7 @@ enum RpcErrorCode {
   INVALID_PARAMS = -31999,
   INVALID_RETURN,
   DOMAIN_ERROR,
+  UNSUPPORTED_PARAMS_TYPE,
 }
 
 interface MiddlewareOpts<C extends {}> {
@@ -53,17 +59,27 @@ export function handler<C extends {} = {}>() {
 }
 
 class RpcHandler<C extends {} = {}> {
-  private _specs: Map<string, MethodSpec<any, any>> = new Map();
-  private _bodies: Map<string, MethodBody<any, C, any>> = new Map();
+  private _specs: Map<string, MethodSpec<any, any, any>> = new Map();
+  private _bodies: Map<string, MethodBody<any, any, C, any>> = new Map();
 
-  method<P extends t.Props, R>(
-    spec: MethodSpec<P, R>,
-    body: MethodBody<P, C, R>
+  method<P extends t.Props, R, Po extends t.Props = {}>(
+    spec: MethodSpec<P, Po, R>,
+    body: MethodBody<P, Po, C, R>
   ) {
     if (this._specs.has(spec.name)) {
       throw new Error(
         "There is already a handler with name '" + spec.name + "'"
       );
+    }
+
+    // TODO: nicer way to do this?
+    for (const optionalName of Object.keys(spec.optionalParams ?? {})) {
+      const params = spec.params as Object; // is this cast safe?
+      if (params.hasOwnProperty(optionalName)) {
+        throw new Error(
+          `There is already a non-optional parameter with name '${optionalName}'`
+        );
+      }
     }
 
     this._bodies.set(spec.name, body);
@@ -104,7 +120,7 @@ class RpcHandler<C extends {} = {}> {
     };
   }
 
-  specs(): MethodSpec<any, any>[] {
+  specs(): MethodSpec<any, any, any>[] {
     return Array.from(this._specs.values());
   }
 
@@ -115,11 +131,28 @@ class RpcHandler<C extends {} = {}> {
       const body = this._bodies.get(name)!;
 
       methods[name] = async function (params, context, callback) {
-        const paramsType = t.type(spec.params);
-        if (!paramsType.is(params)) {
-          const decoded = paramsType.decode(params);
-          const errors = PathReporter.report(decoded);
+        if (Array.isArray(params) || params === undefined) {
+          return callback({
+            code: RpcErrorCode.UNSUPPORTED_PARAMS_TYPE,
+            message: "Method parameters must be an object",
+          });
+        }
 
+        const [mandatoryParams, optionalParams] = splitParams(params, spec);
+
+        const mandatoryParamsType = t.type(spec.params);
+        const optionalParamsType = t.partial(spec.optionalParams ?? {});
+
+        const decodedParams = t
+          .exact(mandatoryParamsType)
+          .decode(mandatoryParams);
+
+        const decodedOptionalParams = t
+          .exact(optionalParamsType)
+          .decode(optionalParams);
+
+        if (isLeft(decodedParams)) {
+          const errors = PathReporter.report(decodedParams);
           return callback({
             code: RpcErrorCode.INVALID_PARAMS,
             message: "Invalid parameters type",
@@ -129,9 +162,23 @@ class RpcHandler<C extends {} = {}> {
           });
         }
 
+        if (isLeft(decodedOptionalParams)) {
+          const errors = PathReporter.report(decodedOptionalParams);
+          return callback({
+            code: RpcErrorCode.INVALID_PARAMS,
+            message: "Invalid parameters type",
+            data: {
+              errors,
+            },
+          });
+        }
+
+        const completeParams = { ...mandatoryParams, ...optionalParams };
+
         try {
-          const result = await body(params, context as C);
+          const result = await body(completeParams, context as C);
           if (!spec.returns.is(result)) {
+            // TODO: exact validation
             return callback({
               code: RpcErrorCode.INVALID_RETURN,
               message: "Invalid return type",
@@ -153,4 +200,24 @@ class RpcHandler<C extends {} = {}> {
 
     return new jayson.Server(methods, { useContext: true });
   }
+}
+
+function splitParams(
+  params: object,
+  spec: MethodSpec<any, any, any>
+): [object, object] {
+  type JsonObject = Record<string, any>; // TODO: any -> JSON compatible value?
+
+  const mandatoryParams: JsonObject = {};
+  const optionalParams: JsonObject = {};
+
+  for (const key of Object.keys(spec.params)) {
+    mandatoryParams[key] = (params as JsonObject)[key];
+  }
+
+  for (const key of Object.keys(spec.optionalParams ?? {})) {
+    optionalParams[key] = (params as JsonObject)[key];
+  }
+
+  return [mandatoryParams, optionalParams];
 }

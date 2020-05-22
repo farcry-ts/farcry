@@ -66,44 +66,6 @@ class RpcHandler<C extends {} = {}> {
       );
     }
 
-    const jaysonCallback: jayson.MethodHandlerContext = async function (
-      params,
-      context,
-      callback
-    ) {
-      const paramsType = t.type(spec.params);
-      if (!paramsType.is(params)) {
-        const decoded = paramsType.decode(params);
-        const errors = PathReporter.report(decoded);
-
-        return callback({
-          code: RpcErrorCode.INVALID_PARAMS,
-          message: "Invalid parameters type",
-          data: {
-            errors,
-          },
-        });
-      }
-
-      try {
-        const result = await body(params, context as C);
-        if (!spec.returns.is(result)) {
-          return callback({
-            code: RpcErrorCode.INVALID_RETURN,
-            message: "Invalid return type",
-          });
-        }
-        return callback(null, result);
-      } catch (err) {
-        const code = isDomainError(err) ? err.code : RpcErrorCode.DOMAIN_ERROR;
-
-        return callback({
-          code,
-          message: err.message,
-        });
-      }
-    };
-
     this._bodies.set(spec.name, body);
     this._specs.set(spec.name, spec);
 

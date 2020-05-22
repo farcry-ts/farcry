@@ -124,9 +124,7 @@ it("should pass a smoke test", (done) => {
 });
 
 it("should return an error (-31999) if the params type isn't correct", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.null,
@@ -168,9 +166,7 @@ it("should return an error (-31999) if the params type isn't correct", (done) =>
 });
 
 it("should return an error (-31998) if the return type isn't correct", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.number,
@@ -201,9 +197,7 @@ it("should return an error (-31998) if the return type isn't correct", (done) =>
 });
 
 it("should return an error (-32600) if the request isn't valid", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.number,
@@ -233,9 +227,7 @@ it("should return an error (-32600) if the request isn't valid", (done) => {
 });
 
 it("should fail with HTTP 500 when the context builder fails", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.number,
@@ -271,9 +263,7 @@ it("should fail with HTTP 500 when the context builder fails", (done) => {
 });
 
 it("should fail with HTTP 500 when the request body isn't parsed", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.number,
@@ -304,9 +294,7 @@ it("should fail with HTTP 500 when the request body isn't parsed", (done) => {
 });
 
 it("should handle batches with some failures", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method-1",
       returns: t.number,
@@ -363,9 +351,7 @@ it("should handle batches with some failures", (done) => {
 });
 
 it("should return an error (-31997) on a general domain error", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.void,
@@ -396,9 +382,7 @@ it("should return an error (-31997) on a general domain error", (done) => {
 });
 
 it("should return a custom error code on a specific domain error", (done) => {
-  const rpc = handler();
-
-  rpc.method(
+  const rpc = handler().method(
     {
       name: "test-method",
       returns: t.void,

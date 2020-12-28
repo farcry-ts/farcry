@@ -3,7 +3,7 @@ import { PathReporter } from "io-ts/lib/PathReporter";
 import { isLeft } from "fp-ts/lib/Either";
 
 import jayson, { JSONRPCVersionTwoRequest } from "jayson";
-import { Request, Response, Handler } from "express";
+import { Request, Response, Handler, NextFunction } from "express";
 
 export interface MethodSpec<P extends t.Props, Po extends t.Props, R> {
   name: string;
@@ -51,7 +51,7 @@ export class DomainError extends Error {
 }
 
 function isDomainError(error: unknown): error is DomainError {
-  return (error as any)[DomainErrorTag];
+  return (error as any)[DomainErrorTag] === true;
 }
 
 export function handler<C extends {} = {}>() {
@@ -95,7 +95,11 @@ class RpcHandler<C extends {} = {}> {
       body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
     }
 
-    return async function (req: RequestWithBody, res: Response) {
+    return async function (
+      req: RequestWithBody,
+      res: Response,
+      next: NextFunction
+    ) {
       if (typeof req.body !== "object") {
         console.error("The request body must be an object");
         res.sendStatus(500);
@@ -114,7 +118,7 @@ class RpcHandler<C extends {} = {}> {
       }
 
       server.call(req.body, context, function (err: any, result: any) {
-        // TODO: Can we be sure that `err' is always a JSON-RPC error?
+        if (err instanceof Error) return next(err);
         res.send(result || err);
       });
     };

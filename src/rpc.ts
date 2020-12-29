@@ -32,12 +32,13 @@ interface ContextBuilder<T> {
 enum RpcErrorCode {
   INVALID_PARAMS = -31999,
   INVALID_RETURN,
-  DOMAIN_ERROR,
+  NON_DOMAIN_ERROR,
   UNSUPPORTED_PARAMS_TYPE,
 }
 
 interface MiddlewareOpts<C extends {}> {
-  contextBuilder: ContextBuilder<C>;
+  contextBuilder?: ContextBuilder<C>;
+  onError?: (error: any, method: string, params: object) => void;
 }
 
 const DomainErrorTag = Symbol("DomainErrorTag");
@@ -89,7 +90,7 @@ class RpcHandler<C extends {} = {}> {
   }
 
   middleware(opts?: MiddlewareOpts<C>): Handler {
-    const server = this.jaysonServer();
+    const server = this.jaysonServer(opts);
 
     interface RequestWithBody extends Request {
       body: JSONRPCVersionTwoRequest | JSONRPCVersionTwoRequest[];
@@ -128,7 +129,7 @@ class RpcHandler<C extends {} = {}> {
     return Array.from(this._specs.values());
   }
 
-  private jaysonServer(): jayson.Server {
+  private jaysonServer(opts?: MiddlewareOpts<C>): jayson.Server {
     const methods: Record<string, jayson.MethodHandlerContext> = {};
 
     for (const [name, spec] of this._specs.entries()) {
@@ -190,9 +191,13 @@ class RpcHandler<C extends {} = {}> {
           }
           return callback(null, result);
         } catch (err) {
+          if (!isDomainError(err)) {
+            opts?.onError?.(err, name, params);
+          }
+
           const code = isDomainError(err)
             ? err.code
-            : RpcErrorCode.DOMAIN_ERROR;
+            : RpcErrorCode.NON_DOMAIN_ERROR;
 
           return callback({
             code,

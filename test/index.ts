@@ -350,7 +350,7 @@ it("should handle batches with some failures", (done) => {
     });
 });
 
-it("should return an error (-31997) on a general domain error", (done) => {
+it("should return an error (-31997) on a generic error", (done) => {
   const rpc = handler().method(
     {
       name: "test-method",
@@ -408,6 +408,51 @@ it("should return a custom error code on a specific domain error", (done) => {
       expect(err).to.be.null;
       expect(res).to.have.status(200);
       expect(res.body).to.be.an.rpcError(12345, "custom error message");
+      done();
+    });
+});
+
+it("should trigger onError on non-domain error", (done) => {
+  const anError = new Error();
+
+  const rpc = handler().method(
+    {
+      name: "test-method",
+      returns: t.void,
+      params: { x: t.number },
+    },
+    async function () {
+      throw anError;
+    }
+  );
+
+  let theError: Error;
+  let theMethod: string;
+  let theParams: object;
+
+  const app = getApp(
+    rpc.middleware({
+      onError(error, method, params) {
+        theError = error;
+        theMethod = method;
+        theParams = params;
+      },
+    })
+  );
+
+  chai
+    .request(app)
+    .post(ENDPOINT)
+    .send({
+      jsonrpc: "2.0",
+      method: "test-method",
+      params: { x: 10 },
+      id: 0,
+    })
+    .end((err, res) => {
+      expect(theError).to.eq(anError);
+      expect(theMethod).to.eq("test-method");
+      expect(theParams).to.have.property("x", 10);
       done();
     });
 });

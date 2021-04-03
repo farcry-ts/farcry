@@ -6,7 +6,7 @@ import bodyParser from "body-parser";
 
 import * as t from "io-ts";
 
-import { handler, DomainError } from "../src/rpc";
+import { handler, DomainError } from "../dist/rpc";
 
 const ENDPOINT = "/rpc";
 
